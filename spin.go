@@ -100,7 +100,7 @@ func (s *Spinner) Start() {
 			fmt.Fprintf(s.writer, s.text+" %s%s", s.next(), " ("+strconv.FormatFloat(float64(time.Now().UnixNano()-t.UnixNano())/1e9, 'f', 3, 64)+"s)")
 			time.Sleep(s.tpf)
 		}
-		fmt.Fprintf(s.writer, s.text+"  %s", " ("+strconv.FormatFloat(float64(time.Now().UnixNano()-t.UnixNano())/1e9, 'f', 3, 64)+"s)")
+		fmt.Fprintf(s.writer, s.text+"  %s", " ("+strconv.FormatFloat(float64(time.Now().UnixNano()-t.UnixNano())/1e9, 'f', 3, 64)+"s)\n")
 	}()
 }
 
@@ -108,6 +108,7 @@ func (s *Spinner) Start() {
 func (s *Spinner) Stop() bool {
 	if s.active == true {
 		s.active = false
+		time.Sleep(s.tpf)
 		return true
 	}
 	return false
