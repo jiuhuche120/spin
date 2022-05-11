@@ -1,6 +1,7 @@
 package spin
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -14,46 +15,56 @@ const DefaultTime = time.Millisecond * 100
 
 // Spinner types
 var (
-	Box1    = `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`
-	Box2    = `⠋⠙⠚⠞⠖⠦⠴⠲⠳⠓`
-	Box3    = `⠄⠆⠇⠋⠙⠸⠰⠠⠰⠸⠙⠋⠇⠆`
-	Box4    = `⠋⠙⠚⠒⠂⠂⠒⠲⠴⠦⠖⠒⠐⠐⠒⠓⠋`
-	Box5    = `⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠴⠲⠒⠂⠂⠒⠚⠙⠉⠁`
-	Box6    = `⠈⠉⠋⠓⠒⠐⠐⠒⠖⠦⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈`
-	Box7    = `⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈`
-	Spin1   = `|/-\`
-	Spin2   = `◴◷◶◵`
-	Spin3   = `◰◳◲◱`
-	Spin4   = `◐◓◑◒`
-	Spin5   = `▉▊▋▌▍▎▏▎▍▌▋▊▉`
-	Spin6   = `▌▄▐▀`
-	Spin7   = `╫╪`
-	Spin8   = `■□▪▫`
-	Spin9   = `←↑→↓`
-	Spin10  = `⦾⦿`
-	Spin11  = `⌜⌝⌟⌞`
-	Spin12  = `┤┘┴└├┌┬┐`
-	Spin13  = `⇑⇗⇒⇘⇓⇙⇐⇖`
-	Spin14  = `☰☱☳☷☶☴`
-	Spin15  = `䷀䷪䷡䷊䷒䷗䷁䷖䷓䷋䷠䷫`
-	Default = Box1
+	Frame1  = `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`
+	Frame2  = `⠋⠙⠚⠞⠖⠦⠴⠲⠳⠓`
+	Frame3  = `⠄⠆⠇⠋⠙⠸⠰⠠⠰⠸⠙⠋⠇⠆`
+	Frame4  = `⠋⠙⠚⠒⠂⠂⠒⠲⠴⠦⠖⠒⠐⠐⠒⠓⠋`
+	Frame5  = `⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠴⠲⠒⠂⠂⠒⠚⠙⠉⠁`
+	Frame6  = `⠈⠉⠋⠓⠒⠐⠐⠒⠖⠦⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈`
+	Frame7  = `⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈`
+	Frame8  = `|/-\`
+	Frame9  = `◴◷◶◵`
+	Frame10 = `◰◳◲◱`
+	Frame11 = `◐◓◑◒`
+	Frame12 = `▉▊▋▌▍▎▏▎▍▌▋▊▉`
+	Frame13 = `▌▄▐▀`
+	Frame14 = `╫╪`
+	Frame15 = `■□▪▫`
+	Frame16 = `←↑→↓`
+	Frame17 = `⦾⦿`
+	Frame18 = `⌜⌝⌟⌞`
+	Frame19 = `┤┘┴└├┌┬┐`
+	Frame20 = `⇑⇗⇒⇘⇓⇙⇐⇖`
+	Frame21 = `☰☱☳☷☶☴`
+	Frame22 = `䷀䷪䷡䷊䷒䷗䷁䷖䷓䷋䷠䷫`
+	OK      = `√`
+	Default = Frame1
+)
+
+type Color string
+
+// Spinner color
+const (
+	Red     Color = "\033[31m"
+	Green   Color = "\033[32m"
+	Yellow  Color = "\033[33m"
+	Blue    Color = "\033[34m"
+	Fuchsia Color = "\033[35m"
+	SkyBlue Color = "\033[36m"
+	White   Color = "\033[37m"
 )
 
 type Spinner struct {
 	frames []rune
 	pos    int
-	active bool
+	ctx    context.Context
+	cancel context.CancelFunc
 	text   string
 	tpf    time.Duration
+	color  Color
 	writer io.Writer
 }
 type Option func(s *Spinner)
-
-func WithFrames(frames string) Option {
-	return func(s *Spinner) {
-		s.Set(frames)
-	}
-}
 
 // WithTimePerFrame sets how long each frame shall
 // be shown.
@@ -70,6 +81,13 @@ func WithWriter(w io.Writer) Option {
 	}
 }
 
+// WithColor sets the color of text
+func WithColor(color Color) Option {
+	return func(s *Spinner) {
+		s.color = color
+	}
+}
+
 // New creates a Spinner object with the provided
 // text. By default, the Default spinner frames are
 // used, and new frames are rendered every 100 milliseconds.
@@ -78,9 +96,10 @@ func WithWriter(w io.Writer) Option {
 func New(text string, opts ...Option) *Spinner {
 	s := &Spinner{
 		frames: []rune(Default),
-		text:   ClearLine + text,
+		text:   text,
 		tpf:    DefaultTime,
 		writer: os.Stdout,
+		color:  White,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -90,28 +109,47 @@ func New(text string, opts ...Option) *Spinner {
 
 // Start shows the spinner.
 func (s *Spinner) Start() {
-	if s.active == true {
+	if s.ctx != nil || s.cancel != nil {
 		return
 	}
-	s.active = true
+	ctx, cancel := context.WithCancel(context.Background())
+	s.ctx = ctx
+	s.cancel = cancel
+	ticker := time.NewTicker(s.tpf)
+	t := time.Now()
 	go func() {
-		t := time.Now()
-		for s.active == true {
-			fmt.Fprintf(s.writer, s.text+" %s%s", s.next(), " ("+strconv.FormatFloat(float64(time.Now().UnixNano()-t.UnixNano())/1e9, 'f', 3, 64)+"s)")
-			time.Sleep(s.tpf)
+		for {
+			select {
+			case <-s.ctx.Done():
+				str := fmt.Sprintf("%s %s %s\n", OK, s.text, getTime(t))
+				_, err := fmt.Fprintf(s.writer, "%s", ClearLine+getColor(str, s.color))
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				return
+			case <-ticker.C:
+				str := fmt.Sprintf("%s %s %s", s.next(), s.text, getTime(t))
+				_, err := fmt.Fprintf(s.writer, "%s", ClearLine+getColor(str, s.color))
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+			}
 		}
-		fmt.Fprintf(s.writer, s.text+"  %s", " ("+strconv.FormatFloat(float64(time.Now().UnixNano()-t.UnixNano())/1e9, 'f', 3, 64)+"s)\n")
 	}()
 }
 
 // Stop hides the spinner.
 func (s *Spinner) Stop() bool {
-	if s.active == true {
-		s.active = false
-		time.Sleep(s.tpf)
-		return true
+	if s.ctx == nil || s.cancel == nil {
+		return false
 	}
-	return false
+	s.cancel()
+	time.Sleep(s.tpf)
+	s.ctx = nil
+	s.cancel = nil
+	return true
 }
 
 // Set frames to the given string which must not use spaces.
@@ -119,8 +157,19 @@ func (s *Spinner) Set(frames string) {
 	s.frames = []rune(frames)
 }
 
+// next give the next frame
 func (s *Spinner) next() string {
 	r := s.frames[s.pos%len(s.frames)]
 	s.pos++
 	return string(r)
+}
+
+// getTime get formatting time string
+func getTime(t time.Time) string {
+	return "(" + strconv.FormatFloat(float64(time.Now().UnixNano()-t.UnixNano())/1e9, 'f', 3, 64) + "s)"
+}
+
+// getColor str surround by color
+func getColor(str string, color Color) string {
+	return string(color) + str + "\033[m"
 }
