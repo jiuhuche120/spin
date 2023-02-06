@@ -5,7 +5,7 @@
 To install spin, simply run
 
 ~~~bash
-go get github.com/jiuhuche120/spin@latest
+go get github.com/jiuhuche120/spin@v0.1.0
 ~~~
 
 ## Example usage
